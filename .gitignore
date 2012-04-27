@@ -1,0 +1,6 @@
+*.*~
+*.log
+*#
+*.fasl
+\.#*
+pbxconfig/
