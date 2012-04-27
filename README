@@ -1,0 +1,22 @@
+* Info
+  AGI script for Asterisk PBX.
+
+** AGI functions
+   agi-verbose
+   agi-set-variable
+   agi-get-variable
+   agi-database-put
+   agi-database-get
+   agi-database-del
+** Aditional functions
+   pbx-member-find-by-pin
+   pbx-queue-find-by-id
+   pbx-acl-member-join-to-queue
+
+   
+
+
+
+
+
+
