@@ -1,0 +1,9 @@
+* Info
+My collection of scripts for AsteriskPBX.
+** manager.lisp
+Provide queue registration by agent PIN code authorization.
+
+
+
+
+

@@ -1,4 +1,4 @@
-;; #!/usr/local/bin/sbcl --script
+#!/usr/local/bin/sbcl --script
 ;; The MIT License
 
 ;; Copyright (c) 2009-2010, MMER Foundation. All right reserved.
