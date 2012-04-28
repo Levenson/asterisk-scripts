@@ -26,7 +26,9 @@
 
 (in-package :manager)
 
-(defparameter *root* (make-pathname :directory '(:relative "pbxconfig"))
+(defparameter *root*
+  (make-pathname :directory
+		 (append (pathname-directory sb-ext::*load-pathname*) '("pbxconfig")))
   "Root directory for the configuration of the PBX node.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -150,7 +152,7 @@
 		(progn
 		  (agi-verbose (format nil "Name: ~s" (object-get-field-value queue "name")))
 		  (agi-set-variable 'qname (object-get-field-value queue "name")))
-		(agi-verbose (format nil "Queue with id ~a not found!" id) ))))
+		(agi-verbose (format nil "Queue with id \"~a\" not found!" id) ))))
 
 (defun pbx-acl-member-join-to-queue? (member queue)
   "Check if MEMBER allowed to connect to QUEUE"
@@ -167,10 +169,10 @@
   (handler-case
 	  (progn
 		(let ((func (symbol-function (find-symbol (string-upcase (car argv))))))
-		  (agi-verbose (format nil "[ Function: ~A  argv: ~A ]"  (car argv) (cdr argv)))
-		  (agi-verbose "==================================================")
-		  (apply func (cdr argv))
-		  (agi-verbose "==================================================")))
+		  (agi-verbose "--------------------------------------------------")
+		  (agi-verbose (format nil " >>> ~A ~A"  (car argv) (cdr argv)))
+		  (agi-verbose "--------------------------------------------------")
+		  (apply func (cdr argv))))
 	(undefined-function ()
 	  (warn "The function \"~a\" is undefined." (car argv)))))
 
