@@ -31,6 +31,8 @@
 		 (append (pathname-directory sb-ext::*load-pathname*) '("pbxconfig")))
   "Root directory for the configuration of the PBX node.")
 
+(defparameter *agi-global* '())
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Utilitites
 
@@ -51,7 +53,8 @@
 
 (defun agi-command (command &rest args)
   (format *standard-output* "~A ~{~S~#[~:; ~]~}~%" (string-upcase command) args)
-  (sleep 0.00005))
+  (multiple-value-bind (code result data) (values-list (string-split #\Space (read-line t nil "")))
+    (string-left-trim "(" (string-right-trim ")" data))))
 
 (defun agi-verbose (message &optional (level 3))
   (agi-command "verbose" message level))
@@ -94,9 +97,9 @@
 
 (defun string-split (devider string)
   (if (null (position devider string))
-      string
-      (list  (subseq string 0 (position devider string))
-	     (string-split devider (subseq string (+ 1 (position devider string)))))))
+      (list string)
+      (append  (list (subseq string 0 (position devider string)))
+	       (string-split devider (subseq string (+ 1 (position devider string)))))))
 
 (defun .config (pathname)
   (make-pathname :directory (pathname-directory pathname)
@@ -113,8 +116,9 @@
   (make-pathname :directory (append (pathname-directory current) (list folder-name))))
 
 (defun object-get-field-value (object field)
-  (cadr (find-if (lambda (key/pair)
-		   (equal key/pair field)) object :key #'car)))
+  (let ((value (second (find-if (lambda (key/pair)
+	    (equal key/pair field)) object :key #'car))))
+    value))
 
 (defun family-list (family-name)
   "List all find FAMILY objects."
@@ -127,8 +131,8 @@
   (do ((elements (family-list family) (cdr elements)))
       ((null (car elements)))
     (let ((object (family-read-by-name family (car elements))))
-      (when (funcall test value (object-get-field-value object field-name))
-	(return (values t object ))))))
+      (when (member value (object-get-field-value object field-name) :test test)
+	(return (values t object))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PBX specific 
@@ -161,14 +165,17 @@
     (let ((qacl (object-get-field-value member "qacl")))
       (if (member (object-get-field-value queue "id" )
 		  (if (listp qacl) qacl (list qacl) ) :test #'equal)
-	  (progn
-	    (agi-database-put "members"
-			      (agi-get-variable "CALLERID(number)")
-			      (object-get-field-value queue "name"))
-	    t) nil))))
+	  t nil))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 
+(defun read-agi-global ()
+  (do ((line (read-line t nil "")
+	     (read-line t nil "")))
+      ((string-equal "" line) t)
+    (multiple-value-bind (key value) (values-list (string-split #\: line))
+      (push (list (subseq key 4)
+		  (string-trim " " value)) *agi-global* ))))
 
 (defun exec-function (argv)
   (handler-case
@@ -177,10 +184,14 @@
 	  (agi-verbose "--------------------------------------------------")
 	  (agi-verbose (format nil " >>> ~A ~A"  (car argv) (cdr argv)))
 	  (agi-verbose "--------------------------------------------------")
+	  ;; (mapcar (lambda (pair)
+	  ;; 	    (agi-verbose (format nil "~a=~S" (car pair) (cadr pair))))  *agi-global*)
 	  (apply func (cdr argv))))
     (undefined-function ()
       (warn "The function \"~a\" is undefined." (car argv)))))
 
 (if (> (length sb-ext:*posix-argv*) 1)
-    (exec-function (cdr sb-ext:*posix-argv*))
+    (progn
+      (read-agi-global)
+      (exec-function (cdr sb-ext:*posix-argv*)))
     (agi-verbose "script.lisp <funcall> <&args>"))
