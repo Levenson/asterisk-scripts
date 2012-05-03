@@ -136,39 +136,40 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; PBX specific 
+(defun pbx-find-report (result object)
+  (agi-verbose (format nil "Name: ~s" (object-get-field-value object "name")))
+  (agi-verbose (format nil "Result: ~s" result)))
 
 (defun pbx-member-find-by-pin (pin)
-  (multiple-value-bind (access member)
+  (multiple-value-bind (found member)
       (family-find-by-field "pin" (princ-to-string pin))
-    (progn
-      (if access
-	  (progn
-	    (agi-verbose (format nil "Name: ~s" (object-get-field-value member "name")))
-	    (agi-verbose (format nil "Access: ~s" access)))
-	  (agi-verbose (format nil "No any member with pin ~a found!" pin)))
-      (agi-set-variable 'maccess (princ-to-string access))
-      (agi-set-variable 'mname   (object-get-field-value member "name")))))
+    (pbx-find-report found member)
+    (agi-set-variable 'mfound found)
+    (agi-set-variable 'mname (object-get-field-value member "name"))))
 
 (defun pbx-queue-find-by-id (id)
-  (multiple-value-bind (find queue)
+  (multiple-value-bind (found queue)
       (family-find-by-field "id" (princ-to-string id) :family "queues")
-    (if find
-	(progn
-	  (agi-verbose (format nil "Name: ~s" (object-get-field-value queue "name")))
-	  (agi-set-variable 'qname (object-get-field-value queue "name")))
-	(agi-verbose (format nil "Queue with id \"~a\" not found!" id) ))))
+    (pbx-find-report found queue)
+    (when found
+      (agi-set-variable 'qname (object-get-field-value queue "name")))))
 
-(defun pbx-acl-member-join-to-queue? (member queue)
+(defun pbx-acl-member-join-to-queue? (member-name queue-name)
   "Check if MEMBER allowed to connect to QUEUE"
-  (let ((member (family-read-by-name "members" member))
-	(queue (family-read-by-name "queues" queue)))
+  (let ((member (family-read-by-name "members" member-name))
+	(queue (family-read-by-name "queues" queue-name)))
     (let ((qacl (object-get-field-value member "qacl")))
-      (if (member (object-get-field-value queue "id" )
-		  (if (listp qacl) qacl (list qacl) ) :test #'equal)
-	  t nil))))
+      (if (member (car (object-get-field-value queue "id")) qacl :test #'equal)
+	  (progn
+	    (agi-verbose (format nil "Result: ~s" t))
+	    (agi-set-variable 'maccess t)	    
+	    (agi-database-put "members"
+	    		      (agi-get-variable "CALLERID(number)")
+			      queue-name) t) nil))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; 
+
 (defun read-agi-global ()
   (do ((line (read-line t nil "")
 	     (read-line t nil "")))
@@ -189,6 +190,7 @@
 	  (apply func (cdr argv))))
     (undefined-function ()
       (warn "The function \"~a\" is undefined." (car argv)))))
+
 
 (if (> (length sb-ext:*posix-argv*) 1)
     (progn
