@@ -43,10 +43,10 @@
 
 (defun directory-ls (pathname &optional &key (recursively nil))
   (loop for element in (directory (format nil "~a/*.*" pathname))
-     append (if (and (directory-p element)
-		     recursively)
-		(cons element (directory-ls element))
-		(list element))))
+     if  (directory-p element) append
+       (if recursively
+	   (cons element (directory-ls element))
+	   (list  element))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; AGI
@@ -87,13 +87,15 @@
 (defun object-read (pathname)
   "Read INI key/value pairs in CONFIG file of one structure."
   (let ((result))
-    (with-open-file (object (.config pathname))
-      (do ((line (read-line object nil)
-		 (read-line object nil)))
-	  ((null line) result)
-	(handler-case
-	    (multiple-value-bind (key value) (values-list (string-split #\= line))
-	      (push (list key (string-split #\, value)) result)))))))
+    (with-open-file (object (.config pathname) :external-format :utf8)
+      (handler-case
+	  (progn (do ((line (read-line object nil)
+			    (read-line object nil)))
+		     ((null line) result)
+		   (handler-case
+		       (multiple-value-bind (key value) (values-list (string-split #\= line))
+			 (push (list key (string-split #\, value)) result)))))
+	(sb-int:stream-decoding-error ())))))
 
 (defun string-split (devider string)
   (if (null (position devider string))
