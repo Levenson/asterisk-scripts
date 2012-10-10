@@ -94,12 +94,11 @@ BEGIN {
     userfield=$18
 
     # CDR sequence number
-    sequence=$19
+    # sequence=$19
 
     ##### Private #####
-    
-    sktext=$20
 
+    sktext=$19
 
     OFS="\",\""
 
@@ -123,15 +122,34 @@ BEGIN {
 	printf "%15s %s\n", "lastapp:", lastapp
 	printf "%15s %s\n", "billsec:", billsec
 	printf "%15s %s\n", "channel:", channel
-	printf "%15s %s\n", "sequence:", sequence
-	printf "%15s %s\n", "sktext:", sktext
+	# printf "%15s %s\n", "sequence:", sequence
+	printf "%15s %s\n", "sktext:", trim(sktext)
     } else {
+
 	# Sometimes dst field doesn't contain dst number.
-	telephone = dst;
-	if ( dst == "s" ){
-	    "echo " dstchannel "| cut -d/ -f2 | cut -d- -f1 " | getline telephone;
-	}
-	print "\""uniqueid,start,check(src),src,check(dst),telephone,billsec,duration,disposition,userfield,trim(sktext)"\"";
+	telephone = "";
+	# Not outgoing?
+	if ( dst ~ /^[1-9]/ ) {
+	    telephone = dst;
+	} else if ( dcontext ~ /outgoing-Dial/ ) {
+	    count=split(lastdata,el,"/")
+	    # lets cut first XXXX prefix
+	    telephone=substr(el[count],5);
+	} else if ( dstchannel ~ /Local\// ) {
+	    # FIXME !Sometimes! dstchannel comes with `local' channel
+	    # Local/1022@local-phones-ffc5;1
+	    d=index(dstchannel,"/");
+	    count=split(substr(dstchannel,d+1),el,"@")
+	    telephone=el[1];
+	} else {
+	    # if ( dst !~ /^9.*$/ ) {
+	    # # "echo '" dstchannel "' | cut -d/ -f2 | cut -d- -f1 " | getline telephone;
+	    d=index(dstchannel,"/");
+	    count=split(substr(dstchannel,d+1),el,"-")
+	    telephone=el[1];
+	} 
+
+	print "\""uniqueid,start,check(src),src,check(telephone),telephone,billsec,duration,disposition,userfield,trim(sktext)"\"";
     }
 }
 
